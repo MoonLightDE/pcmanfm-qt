@@ -20,6 +20,16 @@ set(LIBFM_QT_LIB_SOVERSION "1")
 set(LIB_INSTALL_DIR "lib${LIB_SUFFIX}" CACHE PATH "Installation path for libraries")
 set(INCLUDE_INSTALL_DIR include CACHE PATH "Installation path for includes")
 
+# Build as a MoonLightDE Module
+option(MOONLIGHT_MOD "Build as a module for the MoonLight DE." $ENV{MOONLIGHT_MOD})
+if(MOONLIGHT_MOD)
+    find_package(CppMicroServices NO_MODULE REQUIRED)
+    include_directories(${CppMicroServices_INCLUDE_DIRS})
+
+    find_package(MOONLIGHT_CORE REQUIRED)
+    include_directories(${MOONLIGHT_CORE_SERIVICES_DIR})
+endif()
+
 option(USE_QT5 "Use Qt5. Defaults to Qt4" $ENV{USE_QT5})
 
 if(USE_QT5) # actually, we need Qt >= 5.1. Qt 5.0 is not supported.

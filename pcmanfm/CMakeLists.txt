@@ -24,8 +24,6 @@ link_directories(
 )
 
 set(pcmanfm_SRCS
-  application.cpp
-  pcmanfm.cpp
   mainwindow.cpp
   tabpage.cpp
   tabbar.cpp
@@ -38,6 +36,26 @@ set(pcmanfm_SRCS
   autorundialog.cpp
   settings.cpp
 )
+
+if(MOONLIGHT_MOD)
+    set(pcmanfm_SRCS
+        ${pcmanfm_SRCS}
+        Activator.cpp
+        application.cpp
+
+#        moonlightpcmanfmmodule.cpp
+    )
+
+
+else()
+    set(pcmanfm_SRCS
+        ${pcmanfm_SRCS}
+        pcmanfm.cpp
+        application.cpp
+    )
+
+
+endif()
 
 if(USE_QT5)
   qt5_add_dbus_adaptor(pcmanfm_SRCS
@@ -71,28 +89,84 @@ else()
   qt4_wrap_ui(pcmanfm_UIS_H ${pcmanfm_UIS})
 endif()
 
-add_executable(pcmanfm-qt 
-  ${pcmanfm_SRCS}
-  ${pcmanfm_UIS_H}
-)
-set_property(
-   TARGET pcmanfm-qt APPEND
-   PROPERTY COMPILE_DEFINITIONS
-   LIBFM_QT_API=Q_DECL_IMPORT
-   PCMANFM_DATA_DIR="${CMAKE_INSTALL_PREFIX}/share/pcmanfm-qt"
-   LIBFM_DATA_DIR="${LIBFM_PREFIX}/share/libfm" # This is a little bit dirty
-   PCMANFM_QT_VERSION="${PCMANFM_QT_VERSION}"
-)
 
-target_link_libraries(pcmanfm-qt 
-  ${QTX_LIBRARIES}
-  ${LIBFM_LIBRARIES}
-  ${LIBMENUCACHE_LIBRARIES}
-  ${SYSTEM_LIBS_LIBRARIES}
-  ${LIBFM_LIBRARY}
-)
+if(MOONLIGHT_MOD)
+    set(MODULE_NAME moonlightDE-pcmanfm)
+    find_package(MOONLIGHT_CORE REQUIRED)
+    include_directories(${MOONLIGHT_CORE_SERIVICES_DIR})
 
-install(TARGETS pcmanfm-qt RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    usFunctionGenerateModuleInit( pcmanfm_SRCS
+        NAME  ${MODULE_NAME}
+        LIBRARY_NAME pcmanfm
+    )
+
+    add_library(${MODULE_NAME} SHARED
+        ${pcmanfm_SRCS}
+        ${pcmanfm_UIS_H}
+    )
+
+    set_property(
+       TARGET ${MODULE_NAME} APPEND
+       PROPERTY COMPILE_DEFINITIONS
+       LIBFM_QT_API=Q_DECL_IMPORT
+       PCMANFM_DATA_DIR="${CMAKE_INSTALL_PREFIX}/share/pcmanfm-qt"
+       LIBFM_DATA_DIR="${LIBFM_PREFIX}/share/libfm" # This is a little bit dirty
+       PCMANFM_QT_VERSION="${PCMANFM_QT_VERSION}"
+    )
+
+    target_link_libraries(${MODULE_NAME}
+        ${QTX_LIBRARIES}
+        ${LIBFM_LIBRARIES}
+        ${LIBMENUCACHE_LIBRARIES}
+        ${SYSTEM_LIBS_LIBRARIES}
+        ${LIBFM_LIBRARY}
+        # Link the CppMicroServices library
+        ${CppMicroServices_LIBRARIES}
+    )
+    qt5_use_modules(${MODULE_NAME} Widgets DBus)
+
+    ## --------------------------------------------------------------
+    ## Install
+    ## --------------------------------------------------------------
+    configure_file(descriptor.in  ${MODULE_NAME}.desktop )
+    INSTALL(FILES ${CMAKE_BINARY_DIR}/pcmanfm/${MODULE_NAME}.desktop 
+        DESTINATION ${MOONLIGHT_CORE_DESCRIPTORS_DIR})
+
+    INSTALL(TARGETS ${MODULE_NAME}
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION ${MOONLIGHT_CORE_MODULES_DIR}
+        ARCHIVE DESTINATION lib/static)
+else()
+    add_executable(pcmanfm-qt 
+      ${pcmanfm_SRCS}
+      ${pcmanfm_UIS_H}
+    )
+
+    set_property(
+       TARGET pcmanfm-qt APPEND
+       PROPERTY COMPILE_DEFINITIONS
+       LIBFM_QT_API=Q_DECL_IMPORT
+       PCMANFM_DATA_DIR="${CMAKE_INSTALL_PREFIX}/share/pcmanfm-qt"
+       LIBFM_DATA_DIR="${LIBFM_PREFIX}/share/libfm" # This is a little bit dirty
+       PCMANFM_QT_VERSION="${PCMANFM_QT_VERSION}"
+    )
+
+    target_link_libraries(pcmanfm-qt 
+      ${QTX_LIBRARIES}
+      ${LIBFM_LIBRARIES}
+      ${LIBMENUCACHE_LIBRARIES}
+      ${SYSTEM_LIBS_LIBRARIES}
+      ${LIBFM_LIBRARY}
+    )
+    
+    if(USE_QT5)
+        qt5_use_modules(pcmanfm-qt Widgets DBus)
+    endif()
+
+
+    install(TARGETS pcmanfm-qt RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
 
 # install a desktop entry file for pcmanfm-qt and desktop preferences
 configure_file(pcmanfm-qt.desktop.in pcmanfm-qt.desktop @ONLY)
@@ -123,6 +197,3 @@ set_directory_properties(PROPERTIES
   CLEAN_NO_CUSTOM true
 )
 
-if(USE_QT5)
-  qt5_use_modules(pcmanfm-qt Widgets DBus)
-endif()
